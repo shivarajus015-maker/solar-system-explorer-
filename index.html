@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Solar System Explorer & Planetary Environment Lab</title>
+
+  <!-- Fonts: Outfit + JetBrains Mono + Noto Sans Kannada -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+Kannada:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Three.js & OrbitControls via jsDelivr CDN (works both on file:// and http://) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+  <!-- Loading Splash -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="loading-spinner">
+      <div class="orbit-ring"></div>
+      <div class="orbit-core"></div>
+    </div>
+    <h2 id="loading-title">Synthesizing Planetary Surfaces...</h2>
+    <p id="loading-sub">Generating procedural terrains, atmospheres & rings</p>
+  </div>
+
+  <!-- 3D WebGL Canvas & Projected Labels Layer -->
+  <div id="canvas-container"></div>
+  <div id="labels-layer" aria-hidden="true"></div>
+
+  <!-- Top Navigation HUD -->
+  <header id="top-hud" class="hud-bar">
+    <div class="brand-group">
+      <div class="brand-glyph" aria-hidden="true">
+        <span class="glyph-sun"></span>
+        <span class="glyph-orbit"></span>
+      </div>
+      <div class="brand-text">
+        <h1 id="app-title">Solar System Explorer</h1>
+        <p id="app-subtitle">3D Observatory &amp; Planetary Environment Lab</p>
+      </div>
+    </div>
+
+    <div class="hud-actions">
+      <button id="lang-toggle-btn" class="btn btn-lang" type="button" title="Switch English / ಕನ್ನಡ">
+        <span class="lang-pill" id="lang-badge">EN</span>
+        <span class="lang-divider">/</span>
+        <span id="lang-toggle-label">ಕನ್ನಡ</span>
+      </button>
+
+      <button id="compare-btn" class="btn btn-accent" type="button">
+        <svg viewBox="0 0 24 24" class="btn-icon" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 19V6l-6 6M15 5v13l6-6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span id="compare-btn-text">Compare Planets</span>
+      </button>
+
+      <button id="reset-view-btn" class="btn btn-glass" type="button">
+        <svg viewBox="0 0 24 24" class="btn-icon" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="4" />
+          <ellipse cx="12" cy="12" rx="10" ry="4.5" transform="rotate(-25 12 12)" />
+        </svg>
+        <span id="reset-btn-text">Solar Overview</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Bottom Simulation Controls & Quick Selector Dock -->
+  <footer id="bottom-dock" class="bottom-dock">
+    <div class="planet-pills" id="planet-pills" role="navigation" aria-label="Celestial Bodies"></div>
+
+    <div class="sim-controls-row">
+      <div class="sim-controls-group">
+        <button id="play-pause-btn" class="btn btn-control active" type="button">
+          <span id="play-pause-icon" class="icon-pause">❚❚</span>
+          <span id="play-pause-text">Pause</span>
+        </button>
+
+        <label class="speed-control" for="speed-slider">
+          <span id="speed-label" class="control-label">Orbit Speed</span>
+          <input id="speed-slider" type="range" min="0.1" max="8.0" step="0.1" value="1.0" />
+          <span id="speed-value" class="speed-badge">1.0×</span>
+        </label>
+
+        <button id="toggle-orbits-btn" class="btn btn-control active" type="button">
+          <span class="dot-indicator"></span>
+          <span id="orbits-btn-text">Orbit Lines</span>
+        </button>
+
+        <button id="toggle-labels-btn" class="btn btn-control active" type="button">
+          <span class="dot-indicator"></span>
+          <span id="labels-btn-text">Labels</span>
+        </button>
+      </div>
+
+      <p id="select-prompt" class="select-prompt">
+        Click any planet or the Sun to open Planet Lab
+      </p>
+    </div>
+  </footer>
+
+  <!-- Slide-in Interactive Planet Lab Dashboard -->
+  <aside id="planet-lab" class="planet-lab hidden" aria-label="Planet Lab Dashboard">
+    <div class="lab-header">
+      <div class="lab-title-wrap">
+        <div id="lab-planet-orb" class="lab-planet-orb"></div>
+        <div>
+          <h2 id="lab-planet-name">Earth</h2>
+          <span id="lab-planet-category" class="lab-category-badge">Oceanic Terrestrial Planet</span>
+        </div>
+      </div>
+      <div class="lab-header-actions">
+        <button id="lab-focus-btn" class="btn-icon-only" type="button" title="Center Camera">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke-linecap="round" />
+          </svg>
+        </button>
+        <button id="lab-close-btn" class="btn-icon-only" type="button" title="Close Lab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="lab-scroll-body">
+      <!-- 6-Cell Quick Telemetry Strip -->
+      <div id="lab-stats-grid" class="stats-grid"></div>
+
+      <!-- 1. Temperature Check Meter -->
+      <section class="lab-card" id="temp-card">
+        <div class="card-header">
+          <div class="card-title-row">
+            <span class="card-icon temp-icon">🌡️</span>
+            <h3 id="temp-card-title">Temperature Check Meter</h3>
+          </div>
+          <span id="temp-status-badge" class="status-pill">Habitable</span>
+        </div>
+
+        <div class="thermometer-box">
+          <div class="thermometer-scale-labels">
+            <span>-230°C</span>
+            <span id="tick-freeze-label">0°C</span>
+            <span id="tick-boil-label">100°C</span>
+            <span id="tick-lead-label">327°C</span>
+            <span>5500°C+</span>
+          </div>
+          <div class="thermometer-track" id="thermometer-track">
+            <div class="thermo-tick" style="left: 28%" title="0°C"></div>
+            <div class="thermo-tick" style="left: 44%" title="100°C"></div>
+            <div class="thermo-tick" style="left: 63%" title="327°C"></div>
+            <div id="thermo-range-span" class="thermo-range-span"></div>
+            <div id="thermo-mean-pin" class="thermo-mean-pin">
+              <span class="pin-pulse"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="temp-triplet">
+          <div class="temp-box">
+            <span class="temp-label" id="temp-day-label">Day</span>
+            <strong class="temp-c" id="temp-day-c">-- °C</strong>
+            <span class="temp-f" id="temp-day-f">-- °F</span>
+          </div>
+          <div class="temp-box temp-box-mean">
+            <span class="temp-label" id="temp-mean-label">Mean</span>
+            <strong class="temp-c" id="temp-mean-c">-- °C</strong>
+            <span class="temp-f" id="temp-mean-f">-- °F</span>
+          </div>
+          <div class="temp-box">
+            <span class="temp-label" id="temp-night-label">Night</span>
+            <strong class="temp-c" id="temp-night-c">-- °C</strong>
+            <span class="temp-f" id="temp-night-f">-- °F</span>
+          </div>
+        </div>
+
+        <p id="temp-fact" class="card-note"></p>
+      </section>
+
+      <!-- 2. Elements & Chemical Composition Chart -->
+      <section class="lab-card" id="elements-card">
+        <div class="card-header">
+          <div class="card-title-row">
+            <span class="card-icon">⚗️</span>
+            <h3 id="elements-card-title">Elements &amp; Chemical Composition</h3>
+          </div>
+        </div>
+
+        <div class="composition-group">
+          <h4 id="atmo-sub-title" class="sub-heading">Atmospheric Gases</h4>
+          <div id="atmo-bars" class="bars-list"></div>
+        </div>
+
+        <div class="composition-group">
+          <h4 id="interior-sub-title" class="sub-heading">Core &amp; Surface Elements</h4>
+          <div id="interior-bars" class="bars-list"></div>
+        </div>
+
+        <p id="comp-note" class="card-note"></p>
+      </section>
+
+      <!-- 3. Environment & Weather Simulator Card -->
+      <section class="lab-card" id="env-card">
+        <div class="card-header">
+          <div class="card-title-row">
+            <span class="card-icon">🌪️</span>
+            <h3 id="env-card-title">Environment &amp; Weather Simulator</h3>
+          </div>
+        </div>
+
+        <div class="env-metrics-grid">
+          <div class="env-metric">
+            <span class="env-label" id="env-pressure-label">Pressure vs Earth</span>
+            <strong class="env-value" id="env-pressure-val">--</strong>
+          </div>
+          <div class="env-metric">
+            <span class="env-label" id="env-wind-label">Peak Wind Speed</span>
+            <strong class="env-value" id="env-wind-val">--</strong>
+            <div class="wind-anim-track" id="wind-anim-track">
+              <div class="wind-streak" id="wind-streak"></div>
+            </div>
+          </div>
+          <div class="env-metric">
+            <span class="env-label" id="env-gravity-label">Surface Gravity</span>
+            <strong class="env-value" id="env-gravity-val">--</strong>
+          </div>
+          <div class="env-metric">
+            <span class="env-label" id="env-surface-label">Structure / Surface</span>
+            <strong class="env-value" id="env-surface-val">--</strong>
+          </div>
+        </div>
+
+        <div class="hazards-block">
+          <span class="sub-heading" id="hazards-heading">Real Weather Hazards</span>
+          <div id="hazards-tags" class="hazards-tags"></div>
+          <p id="env-desc" class="card-note"></p>
+        </div>
+      </section>
+
+      <!-- 4. Weight & Survival Check Calculator -->
+      <section class="lab-card" id="calc-card">
+        <div class="card-header">
+          <div class="card-title-row">
+            <span class="card-icon">🧑‍🚀</span>
+            <h3 id="calc-card-title">Weight &amp; Survival Check</h3>
+          </div>
+        </div>
+
+        <div class="weight-input-row">
+          <label for="weight-input" id="weight-input-label">Enter Weight on Earth (kg):</label>
+          <div class="weight-input-controls">
+            <input id="weight-input" type="number" min="1" max="5000" step="1" value="50" />
+            <div class="weight-presets">
+              <button type="button" class="preset-chip" data-weight="30">30</button>
+              <button type="button" class="preset-chip active" data-weight="50">50</button>
+              <button type="button" class="preset-chip" data-weight="70">70</button>
+              <button type="button" class="preset-chip" data-weight="100">100</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="calc-results-grid">
+          <div class="calc-result-box">
+            <span class="env-label" id="your-weight-label">Your Weight Here</span>
+            <div class="weight-big-readout">
+              <strong id="calc-weight-kg">50.0 kg</strong>
+              <span id="calc-gravity-mult" class="mult-badge">1.00× Earth</span>
+            </div>
+            <span class="sub-force" id="calc-weight-newtons">490.5 N</span>
+          </div>
+
+          <div class="calc-result-box survival-box" id="survival-box">
+            <span class="env-label" id="survival-time-label">Unprotected Survival (No Spacesuit)</span>
+            <strong id="survival-time-val" class="survival-val">--</strong>
+          </div>
+        </div>
+
+        <div class="survival-why-box">
+          <span class="why-badge" id="why-label">Why?</span>
+          <p id="survival-reason" class="card-note"></p>
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <!-- Compare Planets Side-by-Side Modal -->
+  <div id="compare-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="compare-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h2 id="compare-title">Compare Worlds Side-by-Side</h2>
+          <p id="compare-subtitle" class="modal-subtitle">
+            Analyze temperature extremes, atmospheric gases, core composition &amp; human survival
+          </p>
+        </div>
+        <button id="compare-close-btn" class="btn-icon-only" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="compare-toolbar">
+        <div class="compare-selectors">
+          <div class="select-wrap">
+            <label for="compare-select-a" id="compare-label-a">First World</label>
+            <select id="compare-select-a"></select>
+          </div>
+          <div class="vs-badge">VS</div>
+          <div class="select-wrap">
+            <label for="compare-select-b" id="compare-label-b">Second World</label>
+            <select id="compare-select-b"></select>
+          </div>
+        </div>
+
+        <div class="compare-presets">
+          <span id="compare-presets-label">Quick Comparisons:</span>
+          <button type="button" class="preset-pill" data-pair="earth,venus" id="preset-earth-venus">Earth vs Venus</button>
+          <button type="button" class="preset-pill" data-pair="earth,mars" id="preset-earth-mars">Earth vs Mars</button>
+          <button type="button" class="preset-pill" data-pair="jupiter,saturn" id="preset-gas-giants">Jupiter vs Saturn</button>
+          <button type="button" class="preset-pill" data-pair="uranus,neptune" id="preset-ice-giants">Uranus vs Neptune</button>
+          <button type="button" class="preset-pill" data-pair="mercury,neptune" id="preset-extremes">Mercury vs Neptune</button>
+        </div>
+      </div>
+
+      <div id="compare-body" class="compare-scroll-body"></div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
